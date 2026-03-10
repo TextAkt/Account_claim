@@ -371,6 +371,8 @@
         }
         
         async function resetAll() {
+            const pw = prompt('Admin-Passwort eingeben:');
+            if (pw !== 'FoBiSteglitz2026') { if (pw !== null) alert('Falsches Passwort.'); return; }
             if (!confirm('Wirklich alle Zuordnungen löschen?')) return;
             claimed = {};
             await saveToCloud();

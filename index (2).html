@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortbildung „Interpretieren mit KI" – Account-Vergabe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --fu-black: #000000;
+            --fu-green: #CCFF00;
+            --fu-dark: #1A1A1A;
+            --fu-gray: #666666;
+            --fu-light: #F7F7F5;
+            --fu-border: #E5E5E0;
+        }
+        
+        body {
+            font-family: 'Source Sans 3', -apple-system, sans-serif;
+            background: var(--fu-light);
+            color: var(--fu-dark);
+            min-height: 100vh;
+        }
+        
+        .topbar { height: 4px; background: var(--fu-green); }
+        
+        .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
+        
+        .header { margin-bottom: 2rem; }
+        .header h1 { font-size: 1.5rem; font-weight: 700; color: var(--fu-black); line-height: 1.3; }
+        .header .subtitle { font-size: 0.875rem; color: var(--fu-gray); margin-top: 0.25rem; }
+        .header .description { font-size: 0.9rem; color: var(--fu-dark); line-height: 1.6; margin-top: 1rem; }
+        
+        .status-bar {
+            display: flex; align-items: center; gap: 1rem;
+            margin-top: 1rem; font-size: 0.8rem; color: var(--fu-gray);
+        }
+        .status-dot {
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 3px; margin-right: 4px; vertical-align: middle;
+        }
+        .status-dot.free { background: #fff; border: 1px solid #ccc; }
+        .status-dot.taken { background: #E8F5E9; border: 1px solid #A5D6A7; }
+        .counter { margin-left: auto; }
+        
+        .grid {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 8px; margin-bottom: 2rem;
+        }
+        @media (max-width: 600px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        
+        .account-btn {
+            background: #fff; border: 1.5px solid var(--fu-border);
+            border-radius: 6px; padding: 12px 8px; text-align: center;
+            cursor: pointer; transition: all 0.15s ease; font-family: inherit;
+        }
+        .account-btn:hover:not(.claimed) {
+            border-color: var(--fu-green);
+            box-shadow: 0 0 0 2px rgba(204, 255, 0, 0.3);
+        }
+        .account-btn.claimed { background: #F1F8E9; border-color: #C5E1A5; cursor: default; }
+        .account-btn .name { font-family: 'Courier New', monospace; font-weight: 700; font-size: 0.85rem; }
+        .account-btn.claimed .name { color: #558B2F; }
+        .account-btn .label { font-size: 0.7rem; margin-top: 4px; color: var(--fu-gray); }
+        .account-btn.claimed .label { color: #7CB342; }
+        
+        .overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.25); z-index: 100;
+            align-items: center; justify-content: center; padding: 1rem;
+        }
+        .overlay.active { display: flex; }
+        
+        .modal {
+            background: #fff; border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            max-width: 400px; width: 100%; padding: 2rem;
+        }
+        .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .modal p { font-size: 0.9rem; color: var(--fu-gray); line-height: 1.5; margin-bottom: 1.25rem; }
+        .modal .mono { font-family: 'Courier New', monospace; font-weight: 700; color: var(--fu-black); }
+        
+        .btn-row { display: flex; gap: 10px; }
+        .btn {
+            flex: 1; padding: 10px; border-radius: 8px; font-size: 0.875rem;
+            font-family: inherit; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s;
+        }
+        .btn-cancel { background: #fff; border: 1.5px solid var(--fu-border); color: var(--fu-gray); }
+        .btn-cancel:hover { background: var(--fu-light); }
+        .btn-confirm { background: var(--fu-black); color: #fff; }
+        .btn-confirm:hover { background: #333; }
+        
+        .btn-done {
+            width: 100%; background: var(--fu-black); color: #fff; padding: 12px;
+            border-radius: 8px; font-size: 0.9rem; font-family: inherit;
+            font-weight: 600; cursor: pointer; border: none;
+        }
+        .btn-done:hover { background: #333; }
+        
+        .credentials-box {
+            background: var(--fu-light); border: 1px solid var(--fu-border);
+            border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;
+        }
+        .credentials-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+        .credentials-row .label { font-size: 0.85rem; color: var(--fu-gray); }
+        .credentials-row .value { font-family: 'Courier New', monospace; font-weight: 700; font-size: 1rem; }
+        .credentials-row .value.big { font-size: 1.2rem; }
+        .credentials-divider { border-top: 1px solid var(--fu-border); margin: 8px 0; padding-top: 8px; }
+        .credentials-row a { color: var(--fu-black); font-size: 0.85rem; }
+        
+        .success-icon {
+            width: 48px; height: 48px; background: #E8F5E9; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1rem; font-size: 1.25rem; color: #43A047;
+        }
+        .hint { font-size: 0.75rem; color: #999; text-align: center; margin-bottom: 1rem; }
+        
+        .info-box {
+            background: #fff; border: 1px solid var(--fu-border);
+            border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;
+        }
+        .info-box h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .info-box ol { padding-left: 1.25rem; font-size: 0.875rem; color: var(--fu-dark); line-height: 1.8; }
+        .info-box a { color: var(--fu-black); }
+        
+        .admin-btn {
+            display: block; margin: 2rem auto 0; background: none; border: none;
+            font-size: 0.7rem; color: #ccc; cursor: pointer; font-family: inherit;
+        }
+        .admin-btn:hover { color: #e53935; }
+        
+        .loading {
+            text-align: center; padding: 3rem; color: var(--fu-gray); font-size: 0.9rem;
+        }
+        .loading .spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 2px solid var(--fu-border); border-top-color: var(--fu-green);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin-right: 8px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .error-banner {
+            display: none; background: #FFF3E0; border: 1px solid #FFE0B2;
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem;
+            font-size: 0.85rem; color: #E65100;
+        }
+        .error-banner.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="topbar"></div>
+    <div class="container">
+        <div class="header">
+            <h1>Fortbildung „Interpretieren mit KI"</h1>
+            <div class="subtitle">Gymnasium Steglitz · 18.03.2026</div>
+            <div class="description">
+                Bitte wählen Sie einen freien Account aus der Liste. Sie erhalten dann Ihre persönlichen Zugangsdaten für die Lernplattform tet.folio. Bitte notieren Sie sich Ihre Daten – ein Account kann nur einmal vergeben werden.
+            </div>
+            <div class="status-bar">
+                <span><span class="status-dot free"></span> Frei</span>
+                <span><span class="status-dot taken"></span> Vergeben</span>
+                <span class="counter" id="counter">0/30 vergeben</span>
+            </div>
+        </div>
+        
+        <div class="error-banner" id="errorBanner">
+            Verbindungsproblem – die Ansicht ist möglicherweise nicht aktuell. Bitte laden Sie die Seite neu.
+        </div>
+        
+        <div id="loadingState" class="loading">
+            <span class="spinner"></span> Lade aktuelle Daten...
+        </div>
+        
+        <div class="grid" id="grid" style="display:none;"></div>
+        
+        <div class="info-box">
+            <h3>So melden Sie sich an</h3>
+            <ol>
+                <li>Öffnen Sie <a href="https://tetfolio.fu-berlin.de" target="_blank">tetfolio.fu-berlin.de</a></li>
+                <li>Geben Sie Ihren Benutzernamen und Ihr Kennwort ein</li>
+                <li>Klicken Sie auf „Anmeldung"</li>
+                <li>Öffnen Sie das <a href="https://tetfolio.fu-berlin.de/tet/2435376" target="_blank">Kursbuch</a></li>
+            </ol>
+        </div>
+        
+        <button class="admin-btn" onclick="resetAll()">Alle Zuordnungen zurücksetzen (Admin)</button>
+    </div>
+    
+    <div class="overlay" id="confirmModal">
+        <div class="modal">
+            <h2>Account beanspruchen?</h2>
+            <p>Möchten Sie <span class="mono" id="confirmName"></span> als Ihren Account wählen? Dieser ist danach für andere nicht mehr verfügbar.</p>
+            <div class="btn-row">
+                <button class="btn btn-cancel" onclick="closeModals()">Abbrechen</button>
+                <button class="btn btn-confirm" id="confirmBtn" onclick="confirmClaim()">Ja, diesen Account nehmen</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="overlay" id="successModal">
+        <div class="modal" style="text-align:center;">
+            <div class="success-icon">✓</div>
+            <h2>Ihr Account steht bereit!</h2>
+            <div class="credentials-box" style="text-align:left;">
+                <div class="credentials-row">
+                    <span class="label">Benutzername</span>
+                    <span class="value big" id="credUser"></span>
+                </div>
+                <div class="credentials-row">
+                    <span class="label">Kennwort</span>
+                    <span class="value" id="credPw"></span>
+                </div>
+                <div class="credentials-divider">
+                    <div class="credentials-row">
+                        <span class="label">Login</span>
+                        <a href="https://tetfolio.fu-berlin.de" target="_blank">tetfolio.fu-berlin.de</a>
+                    </div>
+                    <div class="credentials-row">
+                        <span class="label">Kursbuch</span>
+                        <a href="https://tetfolio.fu-berlin.de/tet/2435376" target="_blank">tetfolio.fu-berlin.de/tet/2435376</a>
+                    </div>
+                </div>
+            </div>
+            <div class="hint">Bitte notieren oder fotografieren Sie diese Zugangsdaten.</div>
+            <button class="btn-done" onclick="closeModals()">Verstanden</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Config ---
+        const BIN_ID = '69b00c47ef73d7764564993f';
+        const API_KEY = '$2a$10$pMydYqCqulwqCIvdkQn3CeIPrMiO3.X7tXpQdT1mnp1xKOxI0ZtAy';
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        
+        const ACCOUNTS = Array.from({length: 30}, (_, i) => ({
+            id: i + 1,
+            user: `GYMS_${i + 1}`,
+            pw: `FF0326_${i + 1}`
+        }));
+        
+        let claimed = {};
+        let pendingId = null;
+        
+        // --- JSONbin API ---
+        async function loadFromCloud() {
+            try {
+                const res = await fetch(API_URL + '/latest', {
+                    headers: { 'X-Master-Key': API_KEY }
+                });
+                if (!res.ok) throw new Error('Load failed');
+                const data = await res.json();
+                claimed = data.record.claimed || {};
+            } catch (e) {
+                console.error('Load error:', e);
+                // Fallback to localStorage
+                try {
+                    const stored = localStorage.getItem('gym-steglitz-claimed');
+                    if (stored) claimed = JSON.parse(stored);
+                } catch(e2) {}
+                document.getElementById('errorBanner').classList.add('active');
+            }
+            
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('grid').style.display = 'grid';
+            render();
+        }
+        
+        async function saveToCloud() {
+            // Always save locally as backup
+            localStorage.setItem('gym-steglitz-claimed', JSON.stringify(claimed));
+            
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
+                    },
+                    body: JSON.stringify({ claimed })
+                });
+                if (!res.ok) throw new Error('Save failed');
+                document.getElementById('errorBanner').classList.remove('active');
+            } catch (e) {
+                console.error('Save error:', e);
+                document.getElementById('errorBanner').classList.add('active');
+            }
+        }
+        
+        // --- Render ---
+        function render() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            ACCOUNTS.forEach(acc => {
+                const btn = document.createElement('button');
+                btn.className = 'account-btn' + (claimed[acc.id] ? ' claimed' : '');
+                btn.innerHTML = `
+                    <div class="name">${acc.user}</div>
+                    <div class="label">${claimed[acc.id] ? '✓ vergeben' : 'frei'}</div>
+                `;
+                if (!claimed[acc.id]) {
+                    btn.onclick = () => showConfirm(acc.id);
+                }
+                grid.appendChild(btn);
+            });
+            
+            const count = Object.keys(claimed).length;
+            document.getElementById('counter').textContent = `${count}/30 vergeben`;
+        }
+        
+        // --- Modals ---
+        function showConfirm(id) {
+            pendingId = id;
+            const acc = ACCOUNTS.find(a => a.id === id);
+            document.getElementById('confirmName').textContent = acc.user;
+            document.getElementById('confirmModal').classList.add('active');
+        }
+        
+        async function confirmClaim() {
+            if (!pendingId) return;
+            
+            // Disable button to prevent double clicks
+            const btn = document.getElementById('confirmBtn');
+            btn.disabled = true;
+            btn.textContent = 'Wird gespeichert...';
+            
+            // Reload latest data first to avoid conflicts
+            try {
+                const res = await fetch(API_URL + '/latest', {
+                    headers: { 'X-Master-Key': API_KEY }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    claimed = data.record.claimed || {};
+                }
+            } catch(e) {}
+            
+            // Check if still free
+            if (claimed[pendingId]) {
+                alert('Dieser Account wurde gerade von jemand anderem beansprucht. Bitte wählen Sie einen anderen.');
+                btn.disabled = false;
+                btn.textContent = 'Ja, diesen Account nehmen';
+                closeModals();
+                render();
+                return;
+            }
+            
+            const acc = ACCOUNTS.find(a => a.id === pendingId);
+            claimed[pendingId] = true;
+            await saveToCloud();
+            
+            btn.disabled = false;
+            btn.textContent = 'Ja, diesen Account nehmen';
+            
+            document.getElementById('confirmModal').classList.remove('active');
+            document.getElementById('credUser').textContent = acc.user;
+            document.getElementById('credPw').textContent = acc.pw;
+            document.getElementById('successModal').classList.add('active');
+            
+            render();
+            pendingId = null;
+        }
+        
+        function closeModals() {
+            document.getElementById('confirmModal').classList.remove('active');
+            document.getElementById('successModal').classList.remove('active');
+            pendingId = null;
+        }
+        
+        async function resetAll() {
+            if (!confirm('Wirklich alle Zuordnungen löschen?')) return;
+            claimed = {};
+            await saveToCloud();
+            render();
+        }
+        
+        // Close on overlay click
+        document.querySelectorAll('.overlay').forEach(el => {
+            el.addEventListener('click', e => {
+                if (e.target === el) closeModals();
+            });
+        });
+        
+        // Init
+        loadFromCloud();
+    </script>
+</body>
+</html>
